@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Zone Smart Search</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Upload ảnh & Tìm kiếm Zone</h2>
+
+        <input type="file" id="imageInput" accept="image/jpeg,image/png">
+        
+        <input type="text" id="searchInput" placeholder="Nhập nội dung tìm kiếm...">
+
+        <button id="clearBtn">Xóa dữ liệu</button>
+
+        <h3>Kết quả:</h3>
+        <div id="results"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
