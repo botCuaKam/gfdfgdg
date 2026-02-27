@@ -1,38 +1,58 @@
 const express = require("express");
-const cors = require("cors");
 const { Pool } = require("pg");
+const cors = require("cors");
+const path = require("path");
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(express.static("public"));
 
+// ===== PostgreSQL Railway =====
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.NODE_ENV === "production"
+    ? { rejectUnauthorized: false }
+    : false
 });
 
-// Tạo bảng nếu chưa có
+// ===== Tạo bảng nếu chưa có =====
 pool.query(`
-CREATE TABLE IF NOT EXISTS zones (
-  id SERIAL PRIMARY KEY,
-  content TEXT
-)
-`);
+  CREATE TABLE IF NOT EXISTS zones (
+    id SERIAL PRIMARY KEY,
+    content TEXT
+  );
+`).catch(err => console.log(err));
 
-// Lưu dữ liệu
+// ===== Lưu dữ liệu =====
 app.post("/save", async (req, res) => {
-  const { content } = req.body;
-  await pool.query("INSERT INTO zones (content) VALUES ($1)", [content]);
-  res.json({ success: true });
+  try {
+    const { data } = req.body;
+
+    await pool.query("DELETE FROM zones"); // ghi đè dữ liệu cũ
+
+    for (let line of data) {
+      await pool.query("INSERT INTO zones(content) VALUES($1)", [line]);
+    }
+
+    res.json({ message: "Saved successfully" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Save failed" });
+  }
 });
 
-// Lấy dữ liệu
+// ===== Lấy dữ liệu =====
 app.get("/data", async (req, res) => {
-  const result = await pool.query("SELECT * FROM zones");
-  res.json(result.rows);
+  try {
+    const result = await pool.query("SELECT content FROM zones");
+    res.json(result.rows.map(r => r.content));
+  } catch (err) {
+    res.status(500).json({ error: "Load failed" });
+  }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running...");
-});
+// ===== Serve frontend =====
+app.use(express.static(path.join(__dirname, "public")));
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log("Server running on port", PORT));
