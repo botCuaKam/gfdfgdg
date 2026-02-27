@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Zone Search Online</title>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+</head>
+<body>
+
+<h2>Upload ảnh và lưu online</h2>
+
+<input type="file" id="imageInput">
+<button onclick="loadData()">Load Data</button>
+
+<input type="text" id="searchInput" placeholder="Nhập tìm kiếm">
+
+<div id="results"></div>
+
+<script>
+let lines = [];
+
+document.getElementById("imageInput").addEventListener("change", async function() {
+  const file = this.files[0];
+
+  const { data: { text } } = await Tesseract.recognize(file, 'vie+eng');
+
+  await fetch("/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ content: text })
+  });
+
+  alert("Đã lưu lên server");
+});
+
+async function loadData() {
+  const res = await fetch("/data");
+  const data = await res.json();
+  lines = data.map(d => d.content);
+  alert("Đã load dữ liệu");
+}
+
+document.getElementById("searchInput").addEventListener("input", function() {
+  const q = this.value.toLowerCase();
+  document.getElementById("results").innerHTML = "";
+
+  lines.forEach(text => {
+    if (text.toLowerCase().includes(q)) {
+      const div = document.createElement("div");
+      div.innerText = text;
+      document.getElementById("results").appendChild(div);
+    }
+  });
+});
+</script>
+
+</body>
+</html>
