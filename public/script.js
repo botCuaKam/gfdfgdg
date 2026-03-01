@@ -1,40 +1,50 @@
 let lines = [];
 
-// ===== Load dữ liệu từ server khi mở web =====
-async function loadData() {
-  const res = await fetch("/data");
-  const data = await res.json();
-  lines = data;
+const dataInput = document.getElementById("dataInput");
+const searchInput = document.getElementById("searchInput");
+const resultsDiv = document.getElementById("results");
+
+
+// ===== Chuẩn hoá chuỗi =====
+function normalizeText(str) {
+  return str
+    .toLowerCase()                    // bỏ hoa thường
+    .normalize("NFD")                 // tách dấu
+    .replace(/[\u0300-\u036f]/g, "")   // xóa dấu
+    .replace(/\s+/g, "");              // xóa khoảng trắng
 }
-loadData();
 
-// ===== Upload ảnh =====
-document.getElementById("imageInput").addEventListener("change", async function () {
 
-  const file = this.files[0];
-  if (!file) return;
-
-  document.getElementById("results").innerHTML = "Đang OCR...";
-
-  const { data: { text } } = await Tesseract.recognize(file, 'vie+eng');
-
-  lines = text
+// ===== Cập nhật dữ liệu khi nhập =====
+dataInput.addEventListener("input", function () {
+  lines = this.value
     .split("\n")
-    .map(l => l.trim())
-    .filter(l => l.length > 0);
-
-  await fetch("/save", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ data: lines })
-  });
-
-  document.getElementById("results").innerHTML = "Đã lưu vào database!";
+    .filter(line => line.trim() !== "");
 });
 
-// ===== Search =====
-document.getElementById("searchInput").addEventListener("input", function () {
 
+// ===== Tìm kiếm =====
+searchInput.addEventListener("input", function () {
+
+  const query = normalizeText(this.value);
+  resultsDiv.innerHTML = "";
+
+  if (query.length === 0) return;
+
+  lines.forEach(line => {
+
+    const normalizedLine = normalizeText(line);
+
+    if (normalizedLine.includes(query)) {
+      const div = document.createElement("div");
+      div.className = "result-item";
+      div.innerText = line; // hiển thị bản gốc
+      resultsDiv.appendChild(div);
+    }
+
+  });
+
+});
   const q = this.value.trim().toLowerCase();
   const resultsDiv = document.getElementById("results");
   resultsDiv.innerHTML = "";
