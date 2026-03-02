@@ -1,5 +1,14 @@
 let lines = [];
 
+// ===== Hàm chuẩn hoá (không phân biệt hoa, dấu, khoảng cách) =====
+function normalizeText(str) {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "");
+}
+
 // ===== Load dữ liệu từ server khi mở web =====
 async function loadData() {
   const res = await fetch("/data");
@@ -32,25 +41,28 @@ document.getElementById("imageInput").addEventListener("change", async function 
   document.getElementById("results").innerHTML = "Đã lưu vào database!";
 });
 
-// ===== Search =====
+// ===== Search (ĐÃ SỬA) =====
 document.getElementById("searchInput").addEventListener("input", function () {
 
-  const q = this.value.trim().toLowerCase();
+  const q = normalizeText(this.value);
   const resultsDiv = document.getElementById("results");
   resultsDiv.innerHTML = "";
 
-  if (q.length < 2) return;
-
-  const regex = new RegExp(`\\b${q}`, "i");
+  if (q.length === 0) return;
 
   lines.forEach(line => {
-    if (regex.test(line)) {
+
+    const normalizedLine = normalizeText(line);
+
+    if (normalizedLine.includes(q)) {
       const div = document.createElement("div");
       div.className = "result-item";
       div.innerText = line;
       resultsDiv.appendChild(div);
     }
+
   });
+
 });
 
 // ===== Clear database =====
