@@ -1,24 +1,34 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html>
+
 <head>
 <meta charset="UTF-8">
-<title>Zone Online</title>
+<title>AI Search</title>
+
 <link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
+
 </head>
+
 <body>
 
-<div class="container">
-  <h2>Upload ảnh & Lưu Online</h2>
+<h2>AI Search System</h2>
 
-  <input type="file" id="imageInput" accept="image/jpeg,image/png">
-  <input type="text" id="searchInput" placeholder="Nhập tìm kiếm...">
-  <button id="clearBtn">Xóa Database</button>
+<input id="searchBox" placeholder="Nhập từ tìm kiếm">
 
-  <h3>Kết quả:</h3>
-  <div id="results"></div>
-</div>
+<button onclick="search()">Search</button>
+
+<div id="result"></div>
+
+
+<hr>
+
+<h3>Upload file</h3>
+
+<input type="file" id="file">
+
+<button onclick="upload()">Upload</button>
 
 <script src="script.js"></script>
+
 </body>
 </html>
