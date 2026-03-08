@@ -1,51 +1,78 @@
-async function search(){
+const input = document.getElementById("searchBox")
+const results = document.getElementById("results")
+const fileInput = document.getElementById("file")
 
-  const q = document.getElementById("searchBox").value
+input.addEventListener("input", async ()=>{
+
+  const text = input.value
+
+  if(text.length === 0){
+
+    results.innerHTML=""
+    return
+
+  }
 
   const res = await fetch("/search",{
+
     method:"POST",
+
     headers:{
       "Content-Type":"application/json"
     },
-    body:JSON.stringify({query:q})
+
+    body:JSON.stringify({query:text})
+
   })
 
   const data = await res.json()
 
-  const div = document.getElementById("result")
+  results.innerHTML=""
 
-  div.innerHTML=""
+  if(data.source==="db"){
 
-  if(data.type==="database"){
+    data.results.forEach(r=>{
 
-    data.data.forEach(r=>{
-      const p=document.createElement("p")
-      p.innerText=r.content
-      div.appendChild(p)
+      const div=document.createElement("div")
+
+      div.innerText=r.content
+
+      results.appendChild(div)
+
     })
 
   }
 
-  if(data.type==="ai"){
+  if(data.source==="ai"){
 
-    div.innerText=data.data
+    const div=document.createElement("div")
+
+    div.innerText=data.results[0].content
+
+    div.style.color="blue"
+
+    results.appendChild(div)
 
   }
 
-}
-async function upload(){
+})
 
-  const file = document.getElementById("file").files[0]
+fileInput.addEventListener("change", async ()=>{
+
+  const file = fileInput.files[0]
 
   const form = new FormData()
 
   form.append("file",file)
 
   await fetch("/upload",{
+
     method:"POST",
+
     body:form
+
   })
 
   alert("upload xong")
 
-}
+})
