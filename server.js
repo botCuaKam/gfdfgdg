@@ -15,13 +15,20 @@ app.use(cors())
 app.use(express.json())
 app.use(express.static("public"))
 
+function log(...msg){
+  console.log(new Date().toISOString(), ...msg)
+}
+
+function logError(...msg){
+  console.error("ERROR", new Date().toISOString(), ...msg)
+}
+
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL
 })
 
 const upload = multer({ dest: "uploads/" })
 
-// tạo bảng nếu chưa có
 pool.query(`
 CREATE TABLE IF NOT EXISTS zones(
  id SERIAL PRIMARY KEY,
@@ -29,110 +36,133 @@ CREATE TABLE IF NOT EXISTS zones(
 )
 `)
 
+async function askAI(question){
 
-// tìm kiếm
+  try{
+
+    log("AI fallback")
+
+    const res = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        contents:[
+          {
+            parts:[{text:question}]
+          }
+        ]
+      }
+    )
+
+    return res.data.candidates[0].content.parts[0].text
+
+  }catch(err){
+
+    logError("AI error",err.message)
+
+    return "AI lỗi"
+
+  }
+
+}
+
 app.post("/search", async (req,res)=>{
 
   const {query} = req.body
 
-  const result = await pool.query(
-    "SELECT * FROM zones WHERE content ILIKE $1",
-    [`%${query}%`]
-  )
+  log("search:",query)
 
-  if(result.rows.length>0){
+  try{
 
-    res.json({
-      type:"database",
-      data: result.rows
-    })
+    const db = await pool.query(
+      "SELECT * FROM zones WHERE content ILIKE $1",
+      [`%${query}%`]
+    )
 
-  }else{
+    log("db rows:",db.rows.length)
 
-    try{
+    if(db.rows.length > 0){
 
-      const ai = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        contents:[{
-          parts:[{text:query}]
-        }]
-      })
-
-      const text =
-      ai.data.candidates?.[0]?.content?.parts?.[0]?.text || "AI không trả lời"
-
-      res.json({
-        type:"ai",
-        data:text
-      })
-
-    }catch(err){
-
-      res.json({
-        type:"error",
-        data:"AI lỗi"
+      return res.json({
+        source:"db",
+        results:db.rows
       })
 
     }
 
+    const ai = await askAI(query)
+
+    res.json({
+      source:"ai",
+      results:[{content:ai}]
+    })
+
+  }catch(err){
+
+    logError("search error",err)
+
+    res.status(500).json({error:"server error"})
+
   }
 
 })
 
-
-
-// upload file
 app.post("/upload", upload.single("file"), async (req,res)=>{
 
-  const file = req.file
-  const path = file.path
+  try{
 
-  let lines=[]
+    const file = req.file
 
-  if(file.originalname.endsWith(".xlsx")){
+    log("upload:",file.originalname)
 
-    const workbook = XLSX.readFile(path)
-    const sheet = workbook.Sheets[workbook.SheetNames[0]]
+    let lines=[]
 
-    const data = XLSX.utils.sheet_to_json(sheet,{header:1})
+    if(file.originalname.endsWith(".xlsx")){
 
-    lines = data.flat().filter(Boolean)
+      const wb = XLSX.readFile(file.path)
+      const sheet = wb.Sheets[wb.SheetNames[0]]
+      const data = XLSX.utils.sheet_to_json(sheet,{header:1})
+
+      lines = data.flat()
+
+    }else{
+
+      const txt = fs.readFileSync(file.path,"utf8")
+      lines = txt.split("\n")
+
+    }
+
+    for(const line of lines){
+
+      if(!line) continue
+
+      await pool.query(
+        "INSERT INTO zones(content) VALUES($1)",
+        [line.toString()]
+      )
+
+    }
+
+    fs.unlinkSync(file.path)
+
+    log("upload rows:",lines.length)
+
+    res.json({rows:lines.length})
+
+  }catch(err){
+
+    logError("upload error",err)
+
+    res.status(500).json({error:"upload failed"})
 
   }
 
-  if(file.originalname.endsWith(".csv")){
-
-    const content = fs.readFileSync(path,"utf8")
-    lines = content.split("\n")
-
-  }
-
-  if(file.originalname.endsWith(".txt")){
-
-    const content = fs.readFileSync(path,"utf8")
-    lines = content.split("\n")
-
-  }
-
-  for(let line of lines){
-
-    await pool.query(
-      "INSERT INTO zones(content) VALUES($1)",
-      [line.toString()]
-    )
-
-  }
-
-  fs.unlinkSync(path)
-
-  res.json({message:"upload xong"})
 })
-
-
 
 const PORT = process.env.PORT || 3000
 
 app.listen(PORT,()=>{
-  console.log("Server running "+PORT)
+
+  log("server started")
+  log("port:",PORT)
+
 })
